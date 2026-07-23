@@ -11,7 +11,7 @@
     <div class="topbar-inner">
       <h1>🔥 多平台热点榜</h1>
       <div class="controls">
-        <label>发布时间
+        <label class="date-range">发布时间
           <input type="date" id="dateFrom" />
           <span class="tilde">~</span>
           <input type="date" id="dateTo" />
@@ -21,11 +21,12 @@
     </div>
   </header>
 
-  <!-- 手机端平台切换（桌面端隐藏） -->
+  <!-- 手机端平台切换（桌面端隐藏）。快手暂时下线，恢复时取消注释
   <nav class="platform-switch">
     <button class="pf-tab active" data-pf="douyin">抖音</button>
     <button class="pf-tab" data-pf="kuaishou">快手</button>
   </nav>
+  -->
 
   <main class="grid" data-active-pf="douyin">
     <!-- 抖音 -->
@@ -33,15 +34,17 @@
       <div class="platform-head douyin">
         <span class="logo">抖音</span>
         <div class="tabs">
-          <button class="tab active" data-board="douyin/manju">漫剧榜</button>
-          <button class="tab" data-board="douyin/series">短剧榜</button>
+          <button class="tab active" data-board="douyin/search">点赞榜</button>
+          <button class="tab" data-board="douyin/highlike">高点赞率</button>
+          <button class="tab" data-board="douyin/manju">漫剧榜</button>
         </div>
       </div>
-      <div class="panel" data-board="douyin/manju"></div>
-      <div class="panel hidden" data-board="douyin/series"></div>
+      <div class="panel" data-board="douyin/search"></div>
+      <div class="panel hidden" data-board="douyin/highlike"></div>
+      <div class="panel hidden" data-board="douyin/manju"></div>
     </section>
 
-    <!-- 快手 -->
+    <!-- 快手：暂时下线，恢复时取消注释
     <section class="platform" data-platform="kuaishou">
       <div class="platform-head kuaishou">
         <span class="logo">快手</span>
@@ -51,6 +54,7 @@
       </div>
       <div class="panel" data-board="kuaishou/manju"></div>
     </section>
+    -->
   </main>
 
   <footer class="foot">仅供内部评估 Demo</footer>

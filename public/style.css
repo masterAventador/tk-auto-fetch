@@ -25,6 +25,8 @@ body {
 .topbar h1 { font-size: 20px; }
 .controls { display: flex; align-items: center; gap: 12px; }
 .controls label { font-size: 13px; color: var(--sub); display: flex; align-items: center; gap: 6px; }
+/* 时间选择先隐藏不放出（数据固定当天）；恢复时删掉这行即可 */
+.controls .date-range { display: none; }
 .controls select, .controls input[type="date"] { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; background: #fff; color: var(--text); }
 .controls input[type="date"] { width: 130px; }
 .controls .tilde { color: var(--sub); }
@@ -41,10 +43,10 @@ body {
 /* 手机端平台切换条（桌面隐藏） */
 .platform-switch { display: none; }
 
-/* 网格：桌面两列，手机单平台 tab 切换 */
+/* 网格：桌面单列（快手下线，恢复后改回 1fr 1fr），手机单平台 tab 切换 */
 .grid {
   max-width: 1100px; margin: 18px auto; padding: 0 18px;
-  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  display: grid; grid-template-columns: 1fr; gap: 18px;
   align-items: start;
 }
 @media (max-width: 760px) {
@@ -86,6 +88,13 @@ body {
 .panel { padding: 6px 0; max-height: 620px; overflow-y: auto; }
 .panel.hidden { display: none; }
 
+/* 桌面：平台卡片通到视口底部，榜单在卡片内部滚动（需写在 .panel 基础规则之后才能覆盖 max-height） */
+@media (min-width: 761px) {
+  .platform { display: flex; flex-direction: column; height: calc(100vh - 116px); }
+  .platform-head { flex: 0 0 auto; }
+  .panel { flex: 1 1 auto; max-height: none; }
+}
+
 .row {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px; border-bottom: 1px solid var(--line);
@@ -103,6 +112,12 @@ body {
 .meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
 .hot { flex: 0 0 auto; text-align: right; font-size: 12px; color: var(--douyin); font-weight: 600; white-space: nowrap; }
 .hot small { display: block; color: var(--sub); font-weight: 400; }
+
+/* 榜单数据口径说明 */
+.board-desc {
+  margin: 10px 16px 0; padding: 9px 12px; border-radius: 8px;
+  background: var(--bg); color: var(--sub); font-size: 12px; line-height: 1.7;
+}
 
 /* 状态 */
 .status { padding: 10px 16px; font-size: 12px; color: var(--sub); display: flex; justify-content: space-between; }

@@ -27,8 +27,11 @@ if (!TIKHUB_KEY) {
   process.exit(1);
 }
 
-// ---- 服务端缓存：同一榜单 60s 内复用，避免浏览器高频轮询/多人访问重复计费 ----
+// ---- 服务端缓存 ----
+// 默认时段（当天）由定时任务每 20 分钟主动刷新，前端请求只读缓存，不触发 TikHub 调用；
+// 自定义时间段属于少数人工操作，按需拉取并用 60s 兜底缓存
 const CACHE_TTL_MS = 60 * 1000;
+const REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 const cache = new Map(); // key -> { at, payload }
 
 async function tikhub(pathAndQuery, body) {
@@ -46,7 +49,10 @@ async function tikhub(pathAndQuery, body) {
       signal: ctrl.signal,
     });
     const json = await res.json();
-    if (json.code !== 200) throw new Error(`TikHub code=${json.code} ${json.message || ''}`);
+    if (json.code !== 200) {
+      const msg = json.message || json.detail?.message_zh || json.detail?.message || '';
+      throw new Error(`TikHub code=${json.code ?? json.detail?.code ?? res.status} ${msg}`);
+    }
     return json.data;
   } finally {
     clearTimeout(timer);
@@ -63,56 +69,158 @@ function inDateRange(ts, from, to) {
 
 const fmt = (n) => (typeof n === 'number' && n > 0 ? n : null);
 
+// 数字转「x.x万」展示
+const fmtCount = (n) => (n >= 1e4 ? (n / 1e4).toFixed(1) + '万' : String(n));
+
+// 本地时区 YYYY-MM-DD
+const localDateStr = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 const fmtDate = (ts) => {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// 三个榜单共用的目标关键词；接口均不支持一次传多个，需逐个调用后合并
+const MANJU_KEYWORDS = ['动态漫', 'AI漫剧', '漫剧'];
+
+// 按关键词各拉一次并合并去重（keyFn 取条目唯一 id）；单个关键词失败不拖垮整榜，全部失败才报错
+async function fetchMergedByKeywords(fetchOne, keyFn) {
+  const settled = await Promise.allSettled(MANJU_KEYWORDS.map(fetchOne));
+  if (settled.every((s) => s.status === 'rejected')) throw settled[0].reason;
+  settled.forEach((s, i) => {
+    if (s.status === 'rejected') console.error(`[关键词 ${MANJU_KEYWORDS[i]}] 拉取失败:`, s.reason?.message);
+  });
+  const seen = new Set();
+  return settled
+    .flatMap((s) => (s.status === 'fulfilled' ? s.value : []))
+    .filter((it) => {
+      const k = keyFn(it);
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+}
+
 // ---- 榜单抓取 + 归一化，统一输出 { rank, title, hot, sub, cover }，query 里可带 from/to ----
 const boards = {
   'douyin/manju': async (query) => {
-    // 抖音热点视频总榜（小时级窗口）+ keyword=漫剧 过滤，即 AI 漫剧热度榜
-    const data = await tikhub('/api/v1/douyin/billboard/fetch_hot_total_video_list', {
-      page: 1,
-      page_size: 50,
-      date_window: 1,
-      sub_type: 1001,
-      keyword: '漫剧',
-      tags: [],
-    });
-    const objs = data?.data?.objs || [];
+    // 抖音热点视频总榜（小时级窗口），三个关键词各过滤一遍后合并
+    const objs = await fetchMergedByKeywords(
+      (keyword) =>
+        tikhub('/api/v1/douyin/billboard/fetch_hot_total_video_list', {
+          page: 1,
+          page_size: 50,
+          date_window: 1,
+          sub_type: 1001,
+          keyword,
+          tags: [],
+        }).then((data) => data?.data?.objs || []),
+      (o) => o.item_id
+    );
     return objs
       .filter((o) => inDateRange(o.publish_time, query.from, query.to))
       .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 50)
       .map((o, i) => ({
         rank: i + 1,
         title: o.item_title || '(无标题)',
         hot: fmt(o.score),
         hotLabel: '热度分',
         sub: [
-          o.play_cnt ? `播放 ${o.play_cnt >= 1e4 ? (o.play_cnt / 1e4).toFixed(1) + '万' : o.play_cnt}` : '',
+          o.play_cnt ? `播放 ${fmtCount(o.play_cnt)}` : '',
           o.publish_time ? `${fmtDate(o.publish_time)} 发布` : '',
           o.nick_name ? `@${o.nick_name}` : '',
         ].filter(Boolean).join(' · '),
         cover: o.item_cover_url || null,
       }));
   },
-  'douyin/series': async (query) => {
-    const data = await tikhub('/api/v1/douyin/web/fetch_series_aweme?offset=0&count=30&content_type=0');
-    return (data.card_list || [])
-      .filter((c) => inDateRange(c.series?.create_time, query.from, query.to))
-      .map((c, i) => {
-      const s = c.series || {};
-      return {
+  'douyin/search': async (query) => {
+    // 视频搜索 V2：三个关键词各搜一遍后合并去重。
+    // publish_time 只支持 1/7/180 天档位，先取能覆盖 from 的最小档位，
+    // 再按 from/to 精确过滤 create_time，按累计点赞取前 20
+    const days = query.from
+      ? Math.ceil((Date.now() - new Date(query.from + 'T00:00:00').getTime()) / 86400000)
+      : 1;
+    const publishTime = days <= 1 ? '1' : days <= 7 ? '7' : '180';
+
+    const searchOneKeyword = async (keyword) => {
+      const collected = [];
+      let cursor = 0, searchId = '', backtrace = '';
+      for (let page = 0; page < 3; page++) {
+        const data = await tikhub('/api/v1/douyin/search/fetch_video_search_v2', {
+          keyword,
+          cursor,
+          sort_type: '1',
+          publish_time: publishTime,
+          filter_duration: '0',
+          content_type: '0',
+          search_id: searchId,
+          backtrace,
+        });
+        for (const b of data?.business_data || []) {
+          const aw = b?.data?.aweme_info;
+          if (aw) collected.push(aw);
+        }
+        const bc = data?.business_config || {};
+        if (!bc.has_more) break;
+        cursor = Number(bc.next_page?.cursor) || cursor + 10;
+        searchId = bc.next_page?.search_id || bc.next_page?.search_request_id || searchId;
+        backtrace = bc.backtrace || '';
+        if (collected.length >= 30) break;
+      }
+      return collected;
+    };
+
+    const merged = await fetchMergedByKeywords(searchOneKeyword, (aw) => aw.aweme_id);
+    return merged
+      .filter((aw) => inDateRange(aw.create_time, query.from, query.to))
+      .sort((a, b) => (b.statistics?.digg_count || 0) - (a.statistics?.digg_count || 0))
+      .slice(0, 50)
+      .map((aw, i) => ({
         rank: i + 1,
-        title: s.series_name || '(无名)',
-        hot: fmt(s.stats?.play_vv),
-        hotLabel: '播放量',
-        sub: [s.status?.status_desc, s.create_time ? `${fmtDate(s.create_time)} 上线` : '', s.author?.nickname].filter(Boolean).join(' · '),
-        cover: s.cover_url?.url_list?.[0] || null,
-      };
-    });
+        title: aw.desc || '(无标题)',
+        hot: fmt(aw.statistics?.digg_count),
+        hotLabel: '点赞',
+        sub: [
+          aw.statistics?.comment_count ? `评论 ${fmtCount(aw.statistics.comment_count)}` : '',
+          aw.create_time ? `${fmtDate(aw.create_time)} 发布` : '',
+          aw.author?.nickname ? `@${aw.author.nickname}` : '',
+        ].filter(Boolean).join(' · '),
+        cover: aw.video?.cover?.url_list?.[0] || null,
+      }));
+  },
+  'douyin/highlike': async (query) => {
+    // 高点赞率榜，三个关键词各过滤一遍后合并；date_window 仅支持 1(按小时统计口径)，传 2 会报参数不合法
+    const objs = await fetchMergedByKeywords(
+      (keyword) =>
+        tikhub('/api/v1/douyin/billboard/fetch_hot_total_high_like_list', {
+          page: 1,
+          page_size: 50,
+          date_window: 1,
+          keyword,
+          tags: [],
+        }).then((data) => data?.data?.objs || []),
+      (o) => o.item_id
+    );
+    return objs
+      .filter((o) => inDateRange(o.publish_time, query.from, query.to))
+      .sort((a, b) => (b.like_cnt || 0) - (a.like_cnt || 0))
+      .slice(0, 50)
+      .map((o, i) => ({
+        rank: i + 1,
+        title: o.item_title || '(无标题)',
+        hot: fmt(o.like_cnt),
+        hotLabel: '1小时点赞',
+        sub: [
+          o.play_cnt ? `1小时播放 ${fmtCount(o.play_cnt)}` : '',
+          o.like_rate ? `点赞率 ${(o.like_rate * 100).toFixed(1)}%` : '',
+          o.publish_time ? `${fmtDate(o.publish_time)} 发布` : '',
+          o.nick_name ? `@${o.nick_name}` : '',
+        ].filter(Boolean).join(' · '),
+        cover: o.item_cover_url || null,
+      }));
   },
   'kuaishou/manju': async (query) => {
     // 「AI漫剧」话题标签热门 feed，抽取剧集(serial)维度并按剧去重，按剧集总播放量排序
@@ -163,16 +271,49 @@ const boards = {
   },
 };
 
+const cacheKeyOf = (key, query) => `${key}?from=${query.from || ''}&to=${query.to || ''}`;
+
+const isDefaultQuery = (query) => {
+  const today = localDateStr();
+  return query.from === today && query.to === today;
+};
+
+async function fetchAndCache(key, query) {
+  const items = await boards[key](query);
+  const payload = { ok: true, updatedAt: new Date().toISOString(), count: items.length, items };
+  cache.set(cacheKeyOf(key, query), { at: Date.now(), payload });
+  return payload;
+}
+
 async function getBoard(key, query) {
-  const cacheKey = `${key}?from=${query.from || ''}&to=${query.to || ''}`;
-  const hit = cache.get(cacheKey);
+  const hit = cache.get(cacheKeyOf(key, query));
+  if (isDefaultQuery(query)) {
+    // 默认时段：只读定时刷新的缓存；冷启动或跨天后缓存缺失时现场拉一次补上
+    if (hit) return { ...hit.payload, cached: true };
+    return fetchAndCache(key, query);
+  }
+  // 自定义时间段：按需拉取 + 60s 兜底缓存
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return { ...hit.payload, cached: true };
   }
-  const items = await boards[key](query);
-  const payload = { ok: true, updatedAt: new Date().toISOString(), count: items.length, items };
-  cache.set(cacheKey, { at: Date.now(), payload });
-  return payload;
+  return fetchAndCache(key, query);
+}
+
+// ---- 定时刷新：每 20 分钟把当天数据全量刷进缓存（快手已下线，不参与） ----
+const AUTO_REFRESH_BOARDS = ['douyin/search', 'douyin/highlike', 'douyin/manju'];
+
+async function refreshDefaultBoards() {
+  const today = localDateStr();
+  const query = { from: today, to: today };
+  for (const key of AUTO_REFRESH_BOARDS) {
+    try {
+      const payload = await fetchAndCache(key, query);
+      console.log(`[定时刷新] ${key} 完成，${payload.count} 条`);
+    } catch (err) {
+      // 失败保留上一轮缓存，下个周期再试
+      console.error(`[定时刷新] ${key} 失败:`, err.message);
+    }
+  }
 }
 
 // ---- 静态文件服务 ----
@@ -201,6 +342,8 @@ const server = http.createServer(async (req, res) => {
   if (urlPath.startsWith('/api/') && boards[key]) {
     try {
       const query = { from: u.searchParams.get('from') || '', to: u.searchParams.get('to') || '' };
+      // 未选时间时默认当天
+      if (!query.from && !query.to) query.from = query.to = localDateStr();
       const payload = await getBoard(key, query);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(payload));
@@ -215,4 +358,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[auto-fetch] 服务已启动 http://localhost:${PORT}`);
+  refreshDefaultBoards();
+  setInterval(refreshDefaultBoards, REFRESH_INTERVAL_MS);
 });
