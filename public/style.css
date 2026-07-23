@@ -1,0 +1,98 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #1a1a1e;
+  --sub: #8a8a92;
+  --line: #ececf0;
+  --douyin: #fe2c55;
+  --kuaishou: #ff6600;
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 顶栏 */
+.topbar { position: sticky; top: 0; z-index: 10; background: var(--card); box-shadow: var(--shadow); }
+.topbar-inner {
+  max-width: 1100px; margin: 0 auto; padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.topbar h1 { font-size: 20px; }
+.controls { display: flex; align-items: center; gap: 12px; }
+.controls label { font-size: 13px; color: var(--sub); display: flex; align-items: center; gap: 6px; }
+.controls select, .controls input[type="date"] { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; background: #fff; color: var(--text); }
+.controls input[type="date"] { width: 130px; }
+.controls .tilde { color: var(--sub); }
+@media (max-width: 760px) {
+  .controls { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .controls input[type="date"] { width: 118px; }
+}
+#refreshAll {
+  padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--text); color: #fff; font-size: 13px;
+}
+#refreshAll:active { opacity: 0.8; }
+
+/* 网格：桌面两列，手机一列 */
+.grid {
+  max-width: 1100px; margin: 18px auto; padding: 0 18px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+}
+@media (max-width: 760px) {
+  .grid { grid-template-columns: 1fr; gap: 14px; margin: 12px auto; padding: 0 12px; }
+  .topbar h1 { font-size: 17px; }
+}
+
+/* 平台卡片 */
+.platform { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.platform-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.platform-head .logo { font-weight: 700; font-size: 16px; padding: 3px 10px; border-radius: 6px; color: #fff; }
+.platform-head.douyin .logo { background: var(--douyin); }
+.platform-head.kuaishou .logo { background: var(--kuaishou); }
+
+.tabs { display: flex; gap: 6px; }
+.tab {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 14px; color: var(--sub); padding: 5px 12px; border-radius: 8px;
+}
+.tab.active { color: var(--text); background: var(--bg); font-weight: 600; }
+
+/* 榜单列表 */
+.panel { padding: 6px 0; max-height: 620px; overflow-y: auto; }
+.panel.hidden { display: none; }
+
+.row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; border-bottom: 1px solid var(--line);
+}
+.row:last-child { border-bottom: none; }
+.rank {
+  flex: 0 0 26px; text-align: center; font-weight: 700; font-size: 15px; color: var(--sub);
+}
+.rank.top { color: var(--douyin); }
+.cover {
+  flex: 0 0 44px; width: 44px; height: 58px; border-radius: 6px; object-fit: cover; background: var(--line);
+}
+.info { flex: 1 1 auto; min-width: 0; }
+.title { font-size: 14px; line-height: 1.4; word-break: break-all; }
+.meta { font-size: 12px; color: var(--sub); margin-top: 3px; }
+.hot { flex: 0 0 auto; text-align: right; font-size: 12px; color: var(--douyin); font-weight: 600; white-space: nowrap; }
+.hot small { display: block; color: var(--sub); font-weight: 400; }
+
+/* 状态 */
+.status { padding: 10px 16px; font-size: 12px; color: var(--sub); display: flex; justify-content: space-between; }
+.loading, .empty, .error { padding: 40px 16px; text-align: center; color: var(--sub); font-size: 14px; line-height: 1.7; }
+.error { color: var(--douyin); }
+.empty small, .error small { color: var(--sub); font-size: 12px; }
+.spin { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--line); border-top-color: var(--sub); border-radius: 50%; animation: r 0.8s linear infinite; }
+@keyframes r { to { transform: rotate(360deg); } }
+
+.foot { text-align: center; color: var(--sub); font-size: 12px; padding: 20px; }

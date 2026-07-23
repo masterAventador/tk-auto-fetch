@@ -1,0 +1,10 @@
+{
+  "name": "auto-fetch",
+  "version": "1.0.0",
+  "description": "多平台热点数据聚合 Demo（抖音/快手，数据源 TikHub）",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多平台热点榜 · Demo</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>🔥 多平台热点榜</h1>
+      <div class="controls">
+        <label>发布时间
+          <input type="date" id="dateFrom" />
+          <span class="tilde">~</span>
+          <input type="date" id="dateTo" />
+        </label>
+        <label>自动刷新
+          <select id="interval">
+            <option value="300000">5 分钟</option>
+            <option value="600000" selected>10 分钟</option>
+            <option value="1800000">30 分钟</option>
+          </select>
+        </label>
+        <button id="refreshAll">立即刷新</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="grid">
+    <!-- 抖音 -->
+    <section class="platform" data-platform="douyin">
+      <div class="platform-head douyin">
+        <span class="logo">抖音</span>
+        <div class="tabs">
+          <button class="tab active" data-board="douyin/manju">漫剧榜</button>
+          <button class="tab" data-board="douyin/series">短剧榜</button>
+          <button class="tab" data-board="douyin/hotsearch">热搜榜</button>
+        </div>
+      </div>
+      <div class="panel" data-board="douyin/manju"></div>
+      <div class="panel hidden" data-board="douyin/series"></div>
+      <div class="panel hidden" data-board="douyin/hotsearch"></div>
+    </section>
+
+    <!-- 快手 -->
+    <section class="platform" data-platform="kuaishou">
+      <div class="platform-head kuaishou">
+        <span class="logo">快手</span>
+        <div class="tabs">
+          <button class="tab active" data-board="kuaishou/hotboard">热榜</button>
+          <button class="tab" data-board="kuaishou/none">短剧榜</button>
+        </div>
+      </div>
+      <div class="panel" data-board="kuaishou/hotboard"></div>
+      <div class="panel hidden" data-board="kuaishou/none">
+        <div class="empty">快手暂无短剧榜数据源<br /><small>TikHub 未提供快手短剧榜端点，后续如接入其他数据源再补充</small></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">数据来源：TikHub · 仅供内部评估 Demo</footer>
+  <script src="/app.js"></script>
+</body>
+</html>
