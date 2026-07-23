@@ -114,6 +114,53 @@ const boards = {
       };
     });
   },
+  'kuaishou/manju': async (query) => {
+    // 「AI漫剧」话题标签热门 feed，抽取剧集(serial)维度并按剧去重，按剧集总播放量排序
+    const seen = new Map();
+    let pcursor = '';
+    for (let page = 0; page < 3; page++) {
+      const qs = `general_tag_id=${encodeURIComponent('AI漫剧')}&tab=hot${pcursor ? `&pcursor=${encodeURIComponent(pcursor)}` : ''}`;
+      const data = await tikhub(`/api/v1/kuaishou/app/fetch_tag_feed?${qs}`);
+      for (const m of data?.mixFeeds || []) {
+        const feed = m.feed || {};
+        const serial = feed.standardSerial?.serial;
+        if (!serial?.id) continue; // 无剧集信息的单条视频（二创/混剪）不进剧榜
+        if (!inDateRange((feed.timestamp || 0) / 1000, query.from, query.to)) continue;
+        const prev = seen.get(serial.id);
+        if (!prev || (serial.viewCount || 0) > prev.hotRaw) {
+          // 剧名为「合集1」这类占位名时，从视频标题的《书名号》里提取真实剧名
+          let title = serial.title || '';
+          if (!title || /^(动画)?合集\d*$/.test(title)) {
+            title = (feed.caption || '').match(/《([^》]+)》/)?.[1] || title || feed.caption || '(无名)';
+          }
+          seen.set(serial.id, {
+            title,
+            hotRaw: serial.viewCount || 0,
+            episodes: serial.episodeCount,
+            author: feed.user_name,
+            ts: feed.timestamp,
+            cover: feed.cover_thumbnail_urls?.[0]?.url || null,
+          });
+        }
+      }
+      pcursor = data?.pcursor;
+      if (!pcursor || pcursor === 'no_more') break;
+    }
+    return [...seen.values()]
+      .sort((a, b) => b.hotRaw - a.hotRaw)
+      .map((s, i) => ({
+        rank: i + 1,
+        title: s.title,
+        hot: fmt(s.hotRaw),
+        hotLabel: '剧集播放',
+        sub: [
+          s.episodes ? `${s.episodes}集` : '',
+          s.ts ? `${fmtDate(s.ts / 1000)} 发布` : '',
+          s.author ? `@${s.author}` : '',
+        ].filter(Boolean).join(' · '),
+        cover: s.cover,
+      }));
+  },
   'douyin/hotsearch': async () => {
     const data = await tikhub('/api/v1/douyin/app/v3/fetch_hot_search_list');
     const list = data?.data?.word_list || [];
@@ -123,18 +170,6 @@ const boards = {
       hot: fmt(w.hot_value),
       hotLabel: '热度',
       sub: w.view_count ? `${w.view_count} 次浏览` : '',
-      cover: null,
-    }));
-  },
-  'kuaishou/hotboard': async () => {
-    const data = await tikhub('/api/v1/kuaishou/app/fetch_hot_board_detail?boardType=1&boardId=1');
-    const hots = data?.hots || [];
-    return hots.map((h, i) => ({
-      rank: h.normalIndex || i + 1,
-      title: h.keyword || '',
-      hot: fmt(h.hotValue),
-      hotLabel: '热度',
-      sub: h.viewCount ? `${h.viewCount} 次浏览` : '',
       cover: null,
     }));
   },

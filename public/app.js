@@ -1,6 +1,6 @@
-const ACTIVE_BOARDS = ['douyin/manju', 'douyin/series', 'douyin/hotsearch', 'kuaishou/hotboard'];
-// 支持发布时间过滤的榜单（热搜/快手热榜无历史维度，不受日期影响）
-const DATE_FILTER_BOARDS = new Set(['douyin/manju', 'douyin/series']);
+const ACTIVE_BOARDS = ['douyin/manju', 'douyin/series', 'douyin/hotsearch', 'kuaishou/manju'];
+// 支持发布时间过滤的榜单（热搜榜无历史维度，不受日期影响）
+const DATE_FILTER_BOARDS = new Set(['douyin/manju', 'douyin/series', 'kuaishou/manju']);
 let timer = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
