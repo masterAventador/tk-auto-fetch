@@ -1,6 +1,5 @@
 const ACTIVE_BOARDS = ['douyin/manju', 'douyin/series', 'kuaishou/manju'];
 const DATE_FILTER_BOARDS = new Set(['douyin/manju', 'douyin/series', 'kuaishou/manju']);
-let timer = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -86,16 +85,6 @@ function setupTabs() {
   });
 }
 
-function setupTimer() {
-  const sel = $('#interval');
-  const restart = () => {
-    if (timer) clearInterval(timer);
-    timer = setInterval(loadAll, Number(sel.value));
-  };
-  sel.addEventListener('change', restart);
-  restart();
-}
-
 function setupPlatformSwitch() {
   const grid = $('.grid');
   $$('.pf-tab').forEach((tab) => {
@@ -109,7 +98,6 @@ function setupPlatformSwitch() {
 document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
   setupPlatformSwitch();
-  setupTimer();
   $('#refreshAll').addEventListener('click', loadAll);
   ['#dateFrom', '#dateTo'].forEach((sel) =>
     $(sel).addEventListener('change', () => DATE_FILTER_BOARDS.forEach(loadBoard))
