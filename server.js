@@ -161,18 +161,6 @@ const boards = {
         cover: s.cover,
       }));
   },
-  'douyin/hotsearch': async () => {
-    const data = await tikhub('/api/v1/douyin/app/v3/fetch_hot_search_list');
-    const list = data?.data?.word_list || [];
-    return list.map((w, i) => ({
-      rank: i + 1,
-      title: w.word || '',
-      hot: fmt(w.hot_value),
-      hotLabel: '热度',
-      sub: w.view_count ? `${w.view_count} 次浏览` : '',
-      cover: null,
-    }));
-  },
 };
 
 async function getBoard(key, query) {

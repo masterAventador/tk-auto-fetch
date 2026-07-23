@@ -28,7 +28,13 @@
     </div>
   </header>
 
-  <main class="grid">
+  <!-- 手机端平台切换（桌面端隐藏） -->
+  <nav class="platform-switch">
+    <button class="pf-tab active" data-pf="douyin">抖音</button>
+    <button class="pf-tab" data-pf="kuaishou">快手</button>
+  </nav>
+
+  <main class="grid" data-active-pf="douyin">
     <!-- 抖音 -->
     <section class="platform" data-platform="douyin">
       <div class="platform-head douyin">
@@ -36,12 +42,10 @@
         <div class="tabs">
           <button class="tab active" data-board="douyin/manju">漫剧榜</button>
           <button class="tab" data-board="douyin/series">短剧榜</button>
-          <button class="tab" data-board="douyin/hotsearch">热搜榜</button>
         </div>
       </div>
       <div class="panel" data-board="douyin/manju"></div>
       <div class="panel hidden" data-board="douyin/series"></div>
-      <div class="panel hidden" data-board="douyin/hotsearch"></div>
     </section>
 
     <!-- 快手 -->

@@ -1,5 +1,4 @@
-const ACTIVE_BOARDS = ['douyin/manju', 'douyin/series', 'douyin/hotsearch', 'kuaishou/manju'];
-// 支持发布时间过滤的榜单（热搜榜无历史维度，不受日期影响）
+const ACTIVE_BOARDS = ['douyin/manju', 'douyin/series', 'kuaishou/manju'];
 const DATE_FILTER_BOARDS = new Set(['douyin/manju', 'douyin/series', 'kuaishou/manju']);
 let timer = null;
 
@@ -97,8 +96,19 @@ function setupTimer() {
   restart();
 }
 
+function setupPlatformSwitch() {
+  const grid = $('.grid');
+  $$('.pf-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      $$('.pf-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      grid.dataset.activePf = tab.dataset.pf;
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
+  setupPlatformSwitch();
   setupTimer();
   $('#refreshAll').addEventListener('click', loadAll);
   ['#dateFrom', '#dateTo'].forEach((sel) =>

@@ -38,15 +38,31 @@ body {
 }
 #refreshAll:active { opacity: 0.8; }
 
-/* 网格：桌面两列，手机一列 */
+/* 手机端平台切换条（桌面隐藏） */
+.platform-switch { display: none; }
+
+/* 网格：桌面两列，手机单平台 tab 切换 */
 .grid {
   max-width: 1100px; margin: 18px auto; padding: 0 18px;
   display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
   align-items: start;
 }
 @media (max-width: 760px) {
-  .grid { grid-template-columns: 1fr; gap: 14px; margin: 12px auto; padding: 0 12px; }
   .topbar h1 { font-size: 17px; }
+  .platform-switch {
+    display: flex; gap: 8px; max-width: 1100px;
+    margin: 12px auto 0; padding: 0 12px;
+  }
+  .pf-tab {
+    flex: 1; padding: 9px 0; border: none; border-radius: 10px; cursor: pointer;
+    font-size: 15px; font-weight: 600; color: var(--sub); background: var(--card);
+  }
+  .pf-tab.active { color: #fff; background: var(--text); }
+  .grid { grid-template-columns: 1fr; gap: 14px; margin: 12px auto; padding: 0 12px; }
+  /* 只显示选中的平台，榜单跟随页面滚动，不再内部滚动 */
+  .grid[data-active-pf="douyin"] .platform[data-platform="kuaishou"] { display: none; }
+  .grid[data-active-pf="kuaishou"] .platform[data-platform="douyin"] { display: none; }
+  .panel { max-height: none; overflow-y: visible; }
 }
 
 /* 平台卡片 */
