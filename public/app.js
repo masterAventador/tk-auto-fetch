@@ -134,7 +134,7 @@ function setupPlatformSwitch() {
   });
 }
 
-// 前端轮询间隔。服务端每 20 分钟刷新缓存，前端高频轮询只读缓存（无 TikHub 成本），
+// 前端轮询间隔。服务端每 2 小时刷新缓存，前端高频轮询只读缓存（无 TikHub 成本），
 // 靠 updatedAt 判断数据是否变化，服务端刷新后前端最多滞后 1 分钟跟上
 const AUTO_REFRESH_MS = 60 * 1000;
 

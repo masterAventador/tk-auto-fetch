@@ -28,10 +28,10 @@ if (!TIKHUB_KEY) {
 }
 
 // ---- 服务端缓存 ----
-// 默认时段（当天）由定时任务每 20 分钟主动刷新，前端请求只读缓存，不触发 TikHub 调用；
+// 默认时段（当天）由定时任务每 2 小时主动刷新，前端请求只读缓存，不触发 TikHub 调用；
 // 自定义时间段属于少数人工操作，按需拉取并用 60s 兜底缓存
 const CACHE_TTL_MS = 60 * 1000;
-const REFRESH_INTERVAL_MS = 20 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000;
 const cache = new Map(); // key -> { at, payload }
 
 async function tikhub(pathAndQuery, body) {
@@ -299,7 +299,7 @@ async function getBoard(key, query) {
   return fetchAndCache(key, query);
 }
 
-// ---- 定时刷新：每 20 分钟把当天数据全量刷进缓存（快手已下线，不参与） ----
+// ---- 定时刷新：每 2 小时把当天数据全量刷进缓存（快手已下线，不参与） ----
 const AUTO_REFRESH_BOARDS = ['douyin/search', 'douyin/highlike', 'douyin/manju'];
 
 async function refreshDefaultBoards() {
